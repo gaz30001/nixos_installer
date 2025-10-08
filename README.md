@@ -23,10 +23,6 @@
 
 Используйте `wpa_cli` для Wi-Fi или просто подключите Ethernet-кабель.
 
-**Шаг 3: Скачайте скрипт**
-
-Замените `ВАШ_ЛОГИН` и `ВАШ_РЕПОЗИТОРИЙ` на ваши данные на GitHub.
-
 ```bash
 curl -LJO [https://raw.githubusercontent.com/gaz30001/nixos_installer/main/install_nixos.sh](https://raw.githubusercontent.com/gaz30001/nixos_installer/main/install_nixos.sh)
 
