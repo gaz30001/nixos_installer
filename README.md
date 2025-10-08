@@ -28,5 +28,5 @@
 Замените `ВАШ_ЛОГИН` и `ВАШ_РЕПОЗИТОРИЙ` на ваши данные на GitHub.
 
 ```bash
-curl -LJO [https://raw.githubusercontent.com/ВАШ_ЛОГИН/ВАШ_РЕПОЗИТОРИЙ/main/nixos_install.sh](https://raw.githubusercontent.com/ВАШ_ЛОГИН/ВАШ_РЕПОЗИТОРИЙ/main/nixos_install.sh)
+curl -LJO [https://raw.githubusercontent.com/gaz30001/nixos_installer/main/install_nixos.sh](https://raw.githubusercontent.com/gaz30001/nixos_installer/main/install_nixos.sh)
 
