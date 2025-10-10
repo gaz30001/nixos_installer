@@ -15,7 +15,7 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
-echo -e "${GREEN}--- Интерактивный установщик NixOS (v5 - PipeWire) ---${RESET}"
+echo -e "${GREEN}--- Интерактивный установщик NixOS (v6 - исправлено имя пакета) ---${RESET}"
 echo -e "${YELLOW}Этот скрипт сотрет все данные на выбранном диске!${RESET}"
 read -p "Вы уверены, что хотите продолжить? (y/N): " CONFIRM
 if [[ "${CONFIRM}" != "y" ]]; then
@@ -212,9 +212,9 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
     pkgs.go pkgs.nodejs pkgs.gcc pkgs.cmake pkgs.gdb (pkgs.python3.withPackages(ps: [ ps.pyalsa ]))
     pkgs.alacritty pkgs.ranger pkgs.zsh pkgs.neovim pkgs.xclip pkgs.gpick pkgs.gparted pkgs.scrot pkgs.xarchiver pkgs.xdotool pkgs.yad pkgs.shellcheck pkgs.shfmt
     pkgs.xorg.xinit pkgs.pcmanfm pkgs.feh pkgs.sxhkd pkgs.polybar pkgs.dunst pkgs.libnotify pkgs.qutebrowser pkgs.zathura
-    pkgs.pavucontrol # pulseaudio-alsa не нужен, pavucontrol работает с PipeWire
+    pkgs.pavucontrol
     pkgs.alsa-plugins pkgs.alsa-tools pkgs.alsa-utils pkgs.ffmpeg pkgs.pamixer
-    pkgs.btrfs-progs pkgs.dosfstools pkgs.libmtp pkgs.gvfs-mtp pkgs.mtpfs pkgs.android-udev-rules
+    pkgs.btrfs-progs pkgs.dosfstools pkgs.libmtp pkgs.gvfs pkgs.mtpfs pkgs.android-udev-rules
   ];
 
   fonts.packages = [
