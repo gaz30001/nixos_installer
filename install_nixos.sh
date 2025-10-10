@@ -15,7 +15,7 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
-echo -e "${GREEN}--- Интерактивный установщик NixOS (v6 - исправлено имя пакета) ---${RESET}"
+echo -e "${GREEN}--- Интерактивный установщик NixOS (v7 - Финальная версия) ---${RESET}"
 echo -e "${YELLOW}Этот скрипт сотрет все данные на выбранном диске!${RESET}"
 read -p "Вы уверены, что хотите продолжить? (y/N): " CONFIRM
 if [[ "${CONFIRM}" != "y" ]]; then
@@ -171,6 +171,9 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
 {
   imports = [ ./hardware-configuration.nix ];
 
+  # РАЗРЕШАЕМ НЕСВОБОДНЫЕ ПАКЕТЫ (например, unrar)
+  nixpkgs.config.allowUnfree = true;
+
   ${BOOTLOADER_CONFIG}
 
   boot.kernelPackages = pkgs.linuxPackages_zen;
@@ -199,7 +202,7 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
   services.xserver.windowManager.bspwm.enable = true;
   ${VIDEO_CONFIG}
 
-  # --- Звук (на базе PipeWire, современный стандарт) ---
+  # Звук (на базе PipeWire, современный стандарт)
   security.rtkit.enable = true;
   services.pipewire = {
     enable = true;
