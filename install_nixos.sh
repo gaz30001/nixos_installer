@@ -15,7 +15,7 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
-echo -e "${GREEN}--- Интерактивный установщик NixOS (v8 - Современный конфиг) ---${RESET}"
+echo -e "${GREEN}--- Интерактивный установщик NixOS (v9 - Nerd Fonts Fix) ---${RESET}"
 echo -e "${YELLOW}Этот скрипт сотрет все данные на выбранном диске!${RESET}"
 read -p "Вы уверены, что хотите продолжить? (y/N): " CONFIRM
 if [[ "${CONFIRM}" != "y" ]]; then
@@ -215,7 +215,7 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
 
   environment.systemPackages = [
     pkgs.git pkgs.curl pkgs.wget pkgs.sudo pkgs.p7zip pkgs.unrar pkgs.zip pkgs.unzip pkgs.tree pkgs.stow
-    pkgs.go pkgs.nodejs pkgs.gcc pkgs.cmake pkgs.gdb (pkgs.python3.withPackages(ps: [ ps.pyalsaaudio ])) # ИСПРАВЛЕНО
+    pkgs.go pkgs.nodejs pkgs.gcc pkgs.cmake pkgs.gdb (pkgs.python3.withPackages(ps: [ ps.pyalsaaudio ]))
     pkgs.alacritty pkgs.ranger pkgs.zsh pkgs.neovim pkgs.xclip pkgs.gpick pkgs.gparted pkgs.scrot pkgs.xarchiver pkgs.xdotool pkgs.yad pkgs.shellcheck pkgs.shfmt
     pkgs.xorg.xinit pkgs.pcmanfm pkgs.feh pkgs.sxhkd pkgs.polybar pkgs.dunst pkgs.libnotify pkgs.qutebrowser pkgs.zathura
     pkgs.pavucontrol
@@ -223,9 +223,12 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
     pkgs.btrfs-progs pkgs.dosfstools pkgs.libmtp pkgs.gvfs pkgs.mtpfs pkgs.android-udev-rules
   ];
 
+  # ИСПРАВЛЕНИЕ: Новый способ установки Nerd Fonts
   fonts.packages = [
     pkgs.terminus_font
-    (pkgs.nerdfonts.override { fonts = [ "JetBrainsMono" "FiraCode" "Iosevka" ]; })
+    pkgs.nerd-fonts.jetbrains-mono
+    pkgs.nerd-fonts.fira-code
+    pkgs.nerd-fonts.iosevka
   ];
   
   programs.mtr.enable = true;
