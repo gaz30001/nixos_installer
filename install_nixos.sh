@@ -1,4 +1,4 @@
-#!/usr/-bin/env bash
+#!/usr/bin/env bash
 
 # Выход при любой ошибке
 set -e
@@ -15,7 +15,7 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
-echo -e "${GREEN}--- Интерактивный установщик NixOS (v4 - финальная) ---${RESET}"
+echo -e "${GREEN}--- Интерактивный установщик NixOS (v5 - PipeWire) ---${RESET}"
 echo -e "${YELLOW}Этот скрипт сотрет все данные на выбранном диске!${RESET}"
 read -p "Вы уверены, что хотите продолжить? (y/N): " CONFIRM
 if [[ "${CONFIRM}" != "y" ]]; then
@@ -82,9 +82,7 @@ select driver in "${drivers[@]}"; do
 done
 
 # --- Начало установки ---
-
 echo -e "\n${GREEN}--- НАЧАЛО УСТАНОВКИ ---${RESET}"
-# ... (вывод информации)
 read -p "Все верно? Нажмите Enter для начала форматирования..."
 
 # --- Разметка и форматирование ---
@@ -108,7 +106,6 @@ if [[ "${BOOT_TYPE}" == "UEFI" ]]; then
     parted -s "${DISK}" -- mkpart ESP fat32 1MiB 513MiB
     parted -s "${DISK}" -- set 1 esp on
     parted -s "${DISK}" -- mkpart primary btrfs 513MiB 100%
-    # Использование "-partx" и "-o NAME" для надежного определения имен разделов
     BOOT_PART=$(lsblk -plno NAME "${DISK}" | grep "${DISK_NAME}[p]*1")
     ROOT_PART=$(lsblk -plno NAME "${DISK}" | grep "${DISK_NAME}[p]*2")
     mkfs.fat -F 32 -n BOOT "${BOOT_PART}"
@@ -119,7 +116,6 @@ else
     ROOT_PART=$(lsblk -plno NAME "${DISK}" | grep "${DISK_NAME}[p]*1")
 fi
 
-# ИСПРАВЛЕНИЕ: Добавлен флаг -f для принудительной перезаписи
 mkfs.btrfs -f -L NIXOS "${ROOT_PART}"
 echo -e "${GREEN}Диск отформатирован.${RESET}"
 
@@ -142,7 +138,6 @@ fi
 echo -e "${GREEN}Файловая система смонтирована.${RESET}"
 
 # --- Генерация конфигурации NixOS ---
-# ... (остальная часть скрипта без изменений)
 echo -e "\n${YELLOW}--> Генерация configuration.nix...${RESET}"
 nixos-generate-config --root /mnt
 
@@ -204,15 +199,21 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
   services.xserver.windowManager.bspwm.enable = true;
   ${VIDEO_CONFIG}
 
-  sound.enable = true;
-  hardware.pulseaudio.enable = true;
+  # --- Звук (на базе PipeWire, современный стандарт) ---
+  security.rtkit.enable = true;
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    pulse.enable = true; # Включает слой совместимости с PulseAudio
+  };
 
   environment.systemPackages = [
     pkgs.git pkgs.curl pkgs.wget pkgs.sudo pkgs.p7zip pkgs.unrar pkgs.zip pkgs.unzip pkgs.tree pkgs.stow
     pkgs.go pkgs.nodejs pkgs.gcc pkgs.cmake pkgs.gdb (pkgs.python3.withPackages(ps: [ ps.pyalsa ]))
     pkgs.alacritty pkgs.ranger pkgs.zsh pkgs.neovim pkgs.xclip pkgs.gpick pkgs.gparted pkgs.scrot pkgs.xarchiver pkgs.xdotool pkgs.yad pkgs.shellcheck pkgs.shfmt
     pkgs.xorg.xinit pkgs.pcmanfm pkgs.feh pkgs.sxhkd pkgs.polybar pkgs.dunst pkgs.libnotify pkgs.qutebrowser pkgs.zathura
-    pkgs.pavucontrol pkgs.pulseaudio-alsa pkgs.alsa-plugins pkgs.alsa-tools pkgs.alsa-utils pkgs.ffmpeg pkgs.pamixer
+    pkgs.pavucontrol # pulseaudio-alsa не нужен, pavucontrol работает с PipeWire
+    pkgs.alsa-plugins pkgs.alsa-tools pkgs.alsa-utils pkgs.ffmpeg pkgs.pamixer
     pkgs.btrfs-progs pkgs.dosfstools pkgs.libmtp pkgs.gvfs-mtp pkgs.mtpfs pkgs.android-udev-rules
   ];
 
@@ -227,7 +228,7 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
     enableSSHSupport = true;
   };
 
-  system.stateVersion = "24.05"; # Используем актуальную версию
+  system.stateVersion = "24.05";
 }
 EOF
 echo -e "${GREEN}Файл configuration.nix успешно создан.${RESET}"
