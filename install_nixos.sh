@@ -15,7 +15,7 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
-echo -e "${GREEN}--- Интерактивный установщик NixOS ---${RESET}"
+echo -e "${GREEN}--- Интерактивный установщик NixOS (v2 - исправленный) ---${RESET}"
 echo -e "${YELLOW}Этот скрипт сотрет все данные на выбранном диске!${RESET}"
 read -p "Вы уверены, что хотите продолжить? (y/N): " CONFIRM
 if [[ "${CONFIRM}" != "y" ]]; then
@@ -94,12 +94,10 @@ read -p "Все верно? Нажмите Enter для начала форма�
 
 # --- Разметка и форматирование ---
 echo -e "\n${YELLOW}--> Форматирование диска ${DISK}...${RESET}"
-# Уничтожаем старую таблицу разделов
 wipefs -a "${DISK}"
 sgdisk --zap-all "${DISK}"
 
 if [[ "${BOOT_TYPE}" == "UEFI" ]]; then
-    # GPT / UEFI
     parted -s "${DISK}" -- mklabel gpt
     parted -s "${DISK}" -- mkpart ESP fat32 1MiB 513MiB
     parted -s "${DISK}" -- set 1 esp on
@@ -108,7 +106,6 @@ if [[ "${BOOT_TYPE}" == "UEFI" ]]; then
     ROOT_PART="${DISK}2"
     mkfs.fat -F 32 -n BOOT "${BOOT_PART}"
 else
-    # MBR / BIOS
     parted -s "${DISK}" -- mklabel msdos
     parted -s "${DISK}" -- mkpart primary btrfs 1MiB 100%
     parted -s "${DISK}" -- set 1 boot on
@@ -140,7 +137,6 @@ echo -e "${GREEN}Файловая система смонтирована.${RESE
 echo -e "\n${YELLOW}--> Генерация configuration.nix...${RESET}"
 nixos-generate-config --root /mnt
 
-# Формирование блока конфигурации для видеодрайвера
 case ${VIDEO_DRIVER} in
     1) VIDEO_CONFIG="services.xserver.videoDrivers = [ \"amdgpu\" ];";;
     2) VIDEO_CONFIG="services.xserver.videoDrivers = [ \"intel\" ];";;
@@ -149,7 +145,6 @@ case ${VIDEO_DRIVER} in
     5) VIDEO_CONFIG="services.xserver.videoDrivers = [ \"modesetting\" ];";;
 esac
 
-# Формирование блока конфигурации для загрузчика
 if [[ "${BOOT_TYPE}" == "UEFI" ]]; then
     BOOTLOADER_CONFIG=$(cat <<EOF
   boot.loader.grub.enable = true;
@@ -173,28 +168,19 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
 {
   imports = [ ./hardware-configuration.nix ];
 
-  # --- Загрузчик ---
   ${BOOTLOADER_CONFIG}
 
-  # --- Ядро и микрокод ---
   boot.kernelPackages = pkgs.linuxPackages_zen;
-  # Раскомментируйте нужную строку для вашего процессора
   hardware.cpu.amd.updateMicrocode = true;
   # hardware.cpu.intel.updateMicrocode = true;
 
-  # --- Сеть ---
   networking.hostName = "${HOSTNAME}";
   networking.networkmanager.enable = true;
 
-  # --- Локализация ---
   time.timeZone = "${TIMEZONE}";
   i18n.defaultLocale = "ru_RU.UTF-8";
-  console = {
-    font = "ter-v16n";
-    keyMap = "ru";
-  };
+  console = { font = "ter-v16n"; keyMap = "ru"; };
 
-  # --- Пользователь ---
   users.users.${USERNAME} = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" ];
@@ -203,51 +189,44 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
   };
   programs.zsh.enable = true;
   security.sudo.enable = true;
-  security.sudo.wheelNeedsPassword = false; # Для удобства
+  security.sudo.wheelNeedsPassword = false;
 
-  # --- Графическая подсистема ---
   services.xserver.enable = true;
   services.xserver.layout = "us,ru";
   services.xserver.xkbOptions = "grp:alt_shift_toggle";
   services.xserver.windowManager.bspwm.enable = true;
   ${VIDEO_CONFIG}
 
-  # --- Звук ---
   sound.enable = true;
   hardware.pulseaudio.enable = true;
 
-  # --- Установка пакетов ---
-  environment.systemPackages = with pkgs; [
+  environment.systemPackages = [
     # Основы
-    git curl wget sudo p7zip unrar zip unzip tree stow
+    pkgs.git pkgs.curl pkgs.wget pkgs.sudo pkgs.p7zip pkgs.unrar pkgs.zip pkgs.unzip pkgs.tree pkgs.stow
     # Разработка
-    go nodejs gcc cmake gdb (python3.withPackages(ps: [ ps.pyalsa ]))
+    pkgs.go pkgs.nodejs pkgs.gcc pkgs.cmake pkgs.gdb (pkgs.python3.withPackages(ps: [ ps.pyalsa ]))
     # Терминал и утилиты
-    alacritty ranger zsh neovim xclip gpick gparted scrot xarchiver xdotool yad shellcheck shfmt
+    pkgs.alacritty pkgs.ranger pkgs.zsh pkgs.neovim pkgs.xclip pkgs.gpick pkgs.gparted pkgs.scrot pkgs.xarchiver pkgs.xdotool pkgs.yad pkgs.shellcheck pkgs.shfmt
     # Графическое окружение
-    xorg.xinit pcmanfm feh sxhkd polybar dunst libnotify qutebrowser zathura
-    # Шрифты (добавляем отдельно)
+    pkgs.xorg.xinit pkgs.pcmanfm pkgs.feh pkgs.sxhkd pkgs.polybar pkgs.dunst pkgs.libnotify pkgs.qutebrowser pkgs.zathura
     # Аудио и мультимедиа
-    pavucontrol pulseaudio-alsa alsa-plugins alsa-tools alsa-utils ffmpeg pamixer
+    pkgs.pavucontrol pkgs.pulseaudio-alsa pkgs.alsa-plugins pkgs.alsa-tools pkgs.alsa-utils pkgs.ffmpeg pkgs.pamixer
     # Утилиты для устройств
-    btrfs-progs dosfstools libmtp gvfs-mtp mtpfs android-udev-rules
+    pkgs.btrfs-progs pkgs.dosfstools pkgs.libmtp pkgs.gvfs-mtp pkgs.mtpfs pkgs.android-udev-rules
   ];
 
-  # --- Шрифты ---
-  fonts.packages = with pkgs; [
-    terminus_font
-    (nerdfonts.override { fonts = [ "JetBrainsMono", "FiraCode", "Iosevka" ]; })
+  fonts.packages = [
+    pkgs.terminus_font
+    (pkgs.nerdfonts.override { fonts = [ "JetBrainsMono" "FiraCode" "Iosevka" ]; })
   ];
   
-  # --- Разрешение для работы не-Nix бинарников ---
   programs.mtr.enable = true;
   programs.gnupg.agent = {
     enable = true;
     enableSSHSupport = true;
   };
 
-  # Версия системы
-  system.stateVersion = "23.05"; # Используйте версию вашего ISO
+  system.stateVersion = "23.05";
 }
 EOF
 
@@ -259,11 +238,7 @@ nixos-install --no-root-passwd
 
 echo -e "\n${GREEN}--- УСТАНОВКА ЗАВЕРШЕНА ---${RESET}"
 echo -e "Теперь вы можете перезагрузить систему."
-echo -e "После перезагрузки войдите под пользователем ${YELLOW}${USERNAME}${RESET}."
-echo -e "Не забудьте создать файлы конфигурации для bspwm, sxhkd и .xinitrc в вашей домашней директории."
-
 read -p "Нажмите Enter для размонтирования файловых систем и перезагрузки..."
 
 umount -R /mnt
 reboot
-
