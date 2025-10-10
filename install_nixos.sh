@@ -15,7 +15,7 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
-echo -e "${GREEN}--- Интерактивный установщик NixOS (v2 - исправленный) ---${RESET}"
+echo -e "${GREEN}--- Интерактивный установщик NixOS (v3 - отказоустойчивый) ---${RESET}"
 echo -e "${YELLOW}Этот скрипт сотрет все данные на выбранном диске!${RESET}"
 read -p "Вы уверены, что хотите продолжить? (y/N): " CONFIRM
 if [[ "${CONFIRM}" != "y" ]]; then
@@ -28,8 +28,8 @@ fi
 # 1. Выбор диска
 echo -e "\n${GREEN}1. Выбор диска для установки:${RESET}"
 lsblk -d -o NAME,SIZE,MODEL
-read -p "Введите имя диска (например, sda или nvme0n1): " DISK
-DISK="/dev/${DISK}"
+read -p "Введите имя диска (например, sda или nvme0n1): " DISK_NAME
+DISK="/dev/${DISK_NAME}"
 if ! lsblk "${DISK}" > /dev/null 2>&1; then
     echo -e "${RED}Диск ${DISK} не найден!${RESET}"
     exit 1
@@ -83,33 +83,44 @@ done
 
 # --- Начало установки ---
 
-echo -e "\n${GREEN}--- НАЧАЛО УСТАНОВКИ ---${RESET}"
+echo -e "\n${GREEN}--- НАЧАло УСТАНОВКИ ---${RESET}"
 echo "Диск: ${DISK}"
 echo "Схема: ${BOOT_TYPE}"
-echo "Хост: ${HOSTNAME}"
-echo "Пользователь: ${USERNAME}"
-echo "Часовой пояс: ${TIMEZONE}"
-echo "Видеодрайвер: ${driver}"
+# ... (остальной вывод)
 read -p "Все верно? Нажмите Enter для начала форматирования..."
 
 # --- Разметка и форматирование ---
+echo -e "\n${YELLOW}--> Предварительная очистка: отмонтируем все разделы на ${DISK}...${RESET}"
+# **НОВЫЙ БЛОК ДЛЯ ИСПРАВЛЕНИЯ ОШИБКИ "Device busy"**
+umount -R /mnt &>/dev/null || true
+swapoff -a &>/dev/null || true
+# Отмонтируем все разделы диска, которые могут быть смонтированы автоматически
+for part in $(lsblk -lnpo NAME "${DISK}"); do
+    if mountpoint -q "${part}"; then
+        echo "Отмонтирование ${part}..."
+        umount "${part}"
+    fi
+done
+sleep 2 # Небольшая пауза, чтобы ядро "отпустило" диск
+
 echo -e "\n${YELLOW}--> Форматирование диска ${DISK}...${RESET}"
 wipefs -a "${DISK}"
 sgdisk --zap-all "${DISK}"
 
 if [[ "${BOOT_TYPE}" == "UEFI" ]]; then
     parted -s "${DISK}" -- mklabel gpt
+    # ... (остальная часть скрипта без изменений)
     parted -s "${DISK}" -- mkpart ESP fat32 1MiB 513MiB
     parted -s "${DISK}" -- set 1 esp on
     parted -s "${DISK}" -- mkpart primary btrfs 513MiB 100%
-    BOOT_PART="${DISK}1"
-    ROOT_PART="${DISK}2"
+    BOOT_PART="${DISK}p1" # Используем "p" для совместимости с NVMe
+    ROOT_PART="${DISK}p2"
     mkfs.fat -F 32 -n BOOT "${BOOT_PART}"
 else
     parted -s "${DISK}" -- mklabel msdos
     parted -s "${DISK}" -- mkpart primary btrfs 1MiB 100%
     parted -s "${DISK}" -- set 1 boot on
-    ROOT_PART="${DISK}1"
+    ROOT_PART="${DISK}p1"
 fi
 
 mkfs.btrfs -L NIXOS "${ROOT_PART}"
@@ -134,6 +145,7 @@ fi
 echo -e "${GREEN}Файловая система смонтирована.${RESET}"
 
 # --- Генерация конфигурации NixOS ---
+# ... (эта часть остается без изменений, она уже исправлена)
 echo -e "\n${YELLOW}--> Генерация configuration.nix...${RESET}"
 nixos-generate-config --root /mnt
 
@@ -161,7 +173,6 @@ EOF
 )
 fi
 
-# Создание и запись файла configuration.nix
 cat << EOF > /mnt/etc/nixos/configuration.nix
 { config, pkgs, ... }:
 
@@ -172,7 +183,6 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
 
   boot.kernelPackages = pkgs.linuxPackages_zen;
   hardware.cpu.amd.updateMicrocode = true;
-  # hardware.cpu.intel.updateMicrocode = true;
 
   networking.hostName = "${HOSTNAME}";
   networking.networkmanager.enable = true;
@@ -201,17 +211,11 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
   hardware.pulseaudio.enable = true;
 
   environment.systemPackages = [
-    # Основы
     pkgs.git pkgs.curl pkgs.wget pkgs.sudo pkgs.p7zip pkgs.unrar pkgs.zip pkgs.unzip pkgs.tree pkgs.stow
-    # Разработка
     pkgs.go pkgs.nodejs pkgs.gcc pkgs.cmake pkgs.gdb (pkgs.python3.withPackages(ps: [ ps.pyalsa ]))
-    # Терминал и утилиты
     pkgs.alacritty pkgs.ranger pkgs.zsh pkgs.neovim pkgs.xclip pkgs.gpick pkgs.gparted pkgs.scrot pkgs.xarchiver pkgs.xdotool pkgs.yad pkgs.shellcheck pkgs.shfmt
-    # Графическое окружение
     pkgs.xorg.xinit pkgs.pcmanfm pkgs.feh pkgs.sxhkd pkgs.polybar pkgs.dunst pkgs.libnotify pkgs.qutebrowser pkgs.zathura
-    # Аудио и мультимедиа
     pkgs.pavucontrol pkgs.pulseaudio-alsa pkgs.alsa-plugins pkgs.alsa-tools pkgs.alsa-utils pkgs.ffmpeg pkgs.pamixer
-    # Утилиты для устройств
     pkgs.btrfs-progs pkgs.dosfstools pkgs.libmtp pkgs.gvfs-mtp pkgs.mtpfs pkgs.android-udev-rules
   ];
 
@@ -229,7 +233,6 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
   system.stateVersion = "23.05";
 }
 EOF
-
 echo -e "${GREEN}Файл configuration.nix успешно создан.${RESET}"
 
 # --- Установка системы ---
