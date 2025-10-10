@@ -11,11 +11,11 @@ RESET="\e[0m"
 
 # Проверка, что скрипт запущен от имени root
 if [[ "${EUID}" -ne 0 ]]; then
-  echo -e "${RED}Пожалуйста, запустите скрипт с правами root (sudo ./nixos_install.sh)${RESET}"
+  echo -e "${RED}Пожалуйста, запустите скрипт с правами root (bash ./nixos_install.sh)${RESET}"
   exit 1
 fi
 
-echo -e "${GREEN}--- Интерактивный установщик NixOS (v7 - Финальная версия) ---${RESET}"
+echo -e "${GREEN}--- Интерактивный установщик NixOS (v8 - Современный конфиг) ---${RESET}"
 echo -e "${YELLOW}Этот скрипт сотрет все данные на выбранном диске!${RESET}"
 read -p "Вы уверены, что хотите продолжить? (y/N): " CONFIRM
 if [[ "${CONFIRM}" != "y" ]]; then
@@ -171,7 +171,7 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
 {
   imports = [ ./hardware-configuration.nix ];
 
-  # РАЗРЕШАЕМ НЕСВОБОДНЫЕ ПАКЕТЫ (например, unrar)
+  # Разрешаем несвободные пакеты (например, unrar)
   nixpkgs.config.allowUnfree = true;
 
   ${BOOTLOADER_CONFIG}
@@ -197,8 +197,11 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
   security.sudo.wheelNeedsPassword = false;
 
   services.xserver.enable = true;
-  services.xserver.layout = "us,ru";
-  services.xserver.xkbOptions = "grp:alt_shift_toggle";
+  # Обновленная, современная конфигурация клавиатуры
+  services.xserver.xkb = {
+    layout = "us,ru";
+    options = "grp:alt_shift_toggle";
+  };
   services.xserver.windowManager.bspwm.enable = true;
   ${VIDEO_CONFIG}
 
@@ -212,7 +215,7 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
 
   environment.systemPackages = [
     pkgs.git pkgs.curl pkgs.wget pkgs.sudo pkgs.p7zip pkgs.unrar pkgs.zip pkgs.unzip pkgs.tree pkgs.stow
-    pkgs.go pkgs.nodejs pkgs.gcc pkgs.cmake pkgs.gdb (pkgs.python3.withPackages(ps: [ ps.pyalsa ]))
+    pkgs.go pkgs.nodejs pkgs.gcc pkgs.cmake pkgs.gdb (pkgs.python3.withPackages(ps: [ ps.pyalsaaudio ])) # ИСПРАВЛЕНО
     pkgs.alacritty pkgs.ranger pkgs.zsh pkgs.neovim pkgs.xclip pkgs.gpick pkgs.gparted pkgs.scrot pkgs.xarchiver pkgs.xdotool pkgs.yad pkgs.shellcheck pkgs.shfmt
     pkgs.xorg.xinit pkgs.pcmanfm pkgs.feh pkgs.sxhkd pkgs.polybar pkgs.dunst pkgs.libnotify pkgs.qutebrowser pkgs.zathura
     pkgs.pavucontrol
