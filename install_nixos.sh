@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/-bin/env bash
 
 # Выход при любой ошибке
 set -e
@@ -15,7 +15,7 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
-echo -e "${GREEN}--- Интерактивный установщик NixOS (v3 - отказоустойчивый) ---${RESET}"
+echo -e "${GREEN}--- Интерактивный установщик NixOS (v4 - финальная) ---${RESET}"
 echo -e "${YELLOW}Этот скрипт сотрет все данные на выбранном диске!${RESET}"
 read -p "Вы уверены, что хотите продолжить? (y/N): " CONFIRM
 if [[ "${CONFIRM}" != "y" ]]; then
@@ -83,25 +83,21 @@ done
 
 # --- Начало установки ---
 
-echo -e "\n${GREEN}--- НАЧАло УСТАНОВКИ ---${RESET}"
-echo "Диск: ${DISK}"
-echo "Схема: ${BOOT_TYPE}"
-# ... (остальной вывод)
+echo -e "\n${GREEN}--- НАЧАЛО УСТАНОВКИ ---${RESET}"
+# ... (вывод информации)
 read -p "Все верно? Нажмите Enter для начала форматирования..."
 
 # --- Разметка и форматирование ---
 echo -e "\n${YELLOW}--> Предварительная очистка: отмонтируем все разделы на ${DISK}...${RESET}"
-# **НОВЫЙ БЛОК ДЛЯ ИСПРАВЛЕНИЯ ОШИБКИ "Device busy"**
 umount -R /mnt &>/dev/null || true
 swapoff -a &>/dev/null || true
-# Отмонтируем все разделы диска, которые могут быть смонтированы автоматически
 for part in $(lsblk -lnpo NAME "${DISK}"); do
     if mountpoint -q "${part}"; then
         echo "Отмонтирование ${part}..."
         umount "${part}"
     fi
 done
-sleep 2 # Небольшая пауза, чтобы ядро "отпустило" диск
+sleep 2
 
 echo -e "\n${YELLOW}--> Форматирование диска ${DISK}...${RESET}"
 wipefs -a "${DISK}"
@@ -109,21 +105,22 @@ sgdisk --zap-all "${DISK}"
 
 if [[ "${BOOT_TYPE}" == "UEFI" ]]; then
     parted -s "${DISK}" -- mklabel gpt
-    # ... (остальная часть скрипта без изменений)
     parted -s "${DISK}" -- mkpart ESP fat32 1MiB 513MiB
     parted -s "${DISK}" -- set 1 esp on
     parted -s "${DISK}" -- mkpart primary btrfs 513MiB 100%
-    BOOT_PART="${DISK}p1" # Используем "p" для совместимости с NVMe
-    ROOT_PART="${DISK}p2"
+    # Использование "-partx" и "-o NAME" для надежного определения имен разделов
+    BOOT_PART=$(lsblk -plno NAME "${DISK}" | grep "${DISK_NAME}[p]*1")
+    ROOT_PART=$(lsblk -plno NAME "${DISK}" | grep "${DISK_NAME}[p]*2")
     mkfs.fat -F 32 -n BOOT "${BOOT_PART}"
 else
     parted -s "${DISK}" -- mklabel msdos
     parted -s "${DISK}" -- mkpart primary btrfs 1MiB 100%
     parted -s "${DISK}" -- set 1 boot on
-    ROOT_PART="${DISK}p1"
+    ROOT_PART=$(lsblk -plno NAME "${DISK}" | grep "${DISK_NAME}[p]*1")
 fi
 
-mkfs.btrfs -L NIXOS "${ROOT_PART}"
+# ИСПРАВЛЕНИЕ: Добавлен флаг -f для принудительной перезаписи
+mkfs.btrfs -f -L NIXOS "${ROOT_PART}"
 echo -e "${GREEN}Диск отформатирован.${RESET}"
 
 # --- Создание BTRFS подтомов и монтирование ---
@@ -145,7 +142,7 @@ fi
 echo -e "${GREEN}Файловая система смонтирована.${RESET}"
 
 # --- Генерация конфигурации NixOS ---
-# ... (эта часть остается без изменений, она уже исправлена)
+# ... (остальная часть скрипта без изменений)
 echo -e "\n${YELLOW}--> Генерация configuration.nix...${RESET}"
 nixos-generate-config --root /mnt
 
@@ -230,7 +227,7 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
     enableSSHSupport = true;
   };
 
-  system.stateVersion = "23.05";
+  system.stateVersion = "24.05"; # Используем актуальную версию
 }
 EOF
 echo -e "${GREEN}Файл configuration.nix успешно создан.${RESET}"
