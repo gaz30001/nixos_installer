@@ -216,7 +216,7 @@ cat << EOF > /mnt/etc/nixos/configuration.nix
   environment.systemPackages = [
     pkgs.git pkgs.curl pkgs.wget pkgs.sudo pkgs.p7zip pkgs.unrar pkgs.zip pkgs.unzip pkgs.tree pkgs.stow
     pkgs.go pkgs.nodejs pkgs.gcc pkgs.cmake pkgs.gdb (pkgs.python3.withPackages(ps: [ ps.pyalsaaudio ]))
-    pkgs.alacritty pkgs.ranger pkgs.zsh pkgs.neovim pkgs.xclip pkgs.gpick pkgs.gparted pkgs.scrot pkgs.xarchiver pkgs.xdotool pkgs.yad pkgs.shellcheck pkgs.shfmt
+    pkgs.alacritty pkgs.ranger pkgs.zsh pkgs.linux-firmware pkgs.neovim pkgs.xclip pkgs.gpick pkgs.gparted pkgs.scrot pkgs.xarchiver pkgs.xdotool pkgs.yad pkgs.shellcheck pkgs.shfmt
     pkgs.xorg.xinit pkgs.pcmanfm pkgs.feh pkgs.sxhkd pkgs.polybar pkgs.dunst pkgs.libnotify pkgs.qutebrowser pkgs.zathura
     pkgs.pavucontrol
     pkgs.alsa-plugins pkgs.alsa-tools pkgs.alsa-utils pkgs.ffmpeg pkgs.pamixer
